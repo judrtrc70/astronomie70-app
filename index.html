@@ -1,0 +1,747 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>astronomie70-app — Ciel de Haute-Saône</title>
+<meta name="theme-color" content="#0a0f1e">
+
+<!-- PWA : installable sur Android et iOS -->
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Ciel 70">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#080c17;
+  --bg-panel:#0f1526;
+  --bg-panel-2:#141b31;
+  --line:#232b45;
+  --text:#e7ecff;
+  --text-dim:#8b93b8;
+  --accent:#5eead4;      /* cyan-nébuleuse : données live */
+  --accent-2:#f5b342;    /* ambre : soleil / lune / alerte */
+  --accent-3:#7c8cf8;    /* violet doux : ISS / secondaire */
+  --danger:#ef5350;
+  --radius:16px;
+  --sw:min(680px, 100vw);
+}
+body.night{
+  --bg:#050202;
+  --bg-panel:#0c0303;
+  --bg-panel-2:#120404;
+  --line:#3a0d0d;
+  --text:#ff6b5e;
+  --text-dim:#a13a30;
+  --accent:#ff5a4a;
+  --accent-2:#ff3b30;
+  --accent-3:#ff8a75;
+  --danger:#ff3b30;
+}
+*{box-sizing:border-box;}
+html,body{margin:0;padding:0;}
+body{
+  background:var(--bg);
+  color:var(--text);
+  font-family:'Inter',sans-serif;
+  min-height:100vh;
+  transition:background .4s ease, color .4s ease;
+  padding-bottom:60px;
+}
+body.night img, body.night iframe{
+  filter:grayscale(1) sepia(1) saturate(6) hue-rotate(-50deg) brightness(.55) contrast(1.2);
+}
+.wrap{max-width:var(--sw); margin:0 auto; padding:0 14px;}
+.mono{font-family:'JetBrains Mono',monospace;}
+.display{font-family:'Space Grotesk',sans-serif;}
+
+/* ---------- Header ---------- */
+header{
+  position:sticky; top:0; z-index:50;
+  background:linear-gradient(180deg, var(--bg) 60%, transparent);
+  backdrop-filter:blur(6px);
+  border-bottom:1px solid var(--line);
+  padding:10px 0 8px;
+}
+.headrow{display:flex; align-items:center; gap:12px;}
+.headrow img{width:42px; height:42px; object-fit:contain; border-radius:8px; background:#fff1; flex-shrink:0;}
+.headrow h1{font-family:'Space Grotesk',sans-serif; font-size:15px; line-height:1.2; margin:0; font-weight:600; letter-spacing:.2px;}
+.headrow .sub{font-size:11px; color:var(--text-dim); margin-top:2px;}
+.night-toggle{
+  margin-left:auto; border:1px solid var(--line); background:var(--bg-panel);
+  color:var(--text); width:38px; height:38px; border-radius:50%; cursor:pointer;
+  display:flex; align-items:center; justify-content:center; font-size:17px; flex-shrink:0;
+}
+
+/* ---------- Sections ---------- */
+main{padding-top:14px;}
+section{margin-bottom:22px;}
+.card{
+  background:var(--bg-panel);
+  border:1px solid var(--line);
+  border-radius:var(--radius);
+  padding:16px;
+}
+.sec-title{
+  display:flex; align-items:baseline; gap:8px; margin:0 0 10px 2px;
+}
+.sec-title .num{font-family:'JetBrains Mono',monospace; color:var(--accent); font-size:12px; opacity:.8;}
+.sec-title h2{font-family:'Space Grotesk',sans-serif; font-size:16px; margin:0; font-weight:600;}
+.sec-sub{font-size:12px; color:var(--text-dim); margin:-6px 0 12px 2px;}
+
+/* ---------- Bortle dial ---------- */
+.bortle-row{display:flex; align-items:center; gap:16px;}
+.dial-wrap{position:relative; width:92px; height:92px; flex-shrink:0;}
+.dial-wrap svg{width:100%; height:100%;}
+.bortle-num{
+  position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
+  font-family:'Space Grotesk',sans-serif; font-size:28px; font-weight:700; color:var(--accent);
+}
+.bortle-info{flex:1;}
+.bortle-label{font-family:'Space Grotesk',sans-serif; font-size:14px; font-weight:600;}
+.bortle-desc{font-size:12px; color:var(--text-dim); margin-top:3px; line-height:1.4;}
+.bortle-adjust{margin-top:10px; display:flex; align-items:center; gap:8px;}
+.bortle-adjust input[type=range]{flex:1; accent-color:var(--accent);}
+.bortle-adjust label{font-size:11px; color:var(--text-dim); white-space:nowrap;}
+.loc-status{font-size:11px; color:var(--text-dim); margin-top:8px; display:flex; gap:6px; align-items:center;}
+.dot{width:6px;height:6px;border-radius:50%;background:var(--accent-2);}
+.dot.ok{background:var(--accent);}
+button.pill{
+  border:1px solid var(--line); background:var(--bg-panel-2); color:var(--text);
+  font-size:11px; padding:6px 10px; border-radius:20px; cursor:pointer; font-family:'Inter',sans-serif;
+}
+
+/* ---------- Sky map ---------- */
+.skymap-frame{
+  width:100%; aspect-ratio:1/1; border:0; border-radius:12px; background:#000; display:block;
+}
+.skymap-ctrl{display:flex; gap:8px; margin-top:10px; flex-wrap:wrap;}
+
+/* ---------- Calendar ---------- */
+.cal-frame{width:100%; height:420px; border:0; border-radius:12px; background:#fff;}
+.cal-list{display:flex; flex-direction:column; gap:8px; margin-top:10px;}
+.cal-item{border-left:3px solid var(--accent-3); background:var(--bg-panel-2); border-radius:8px; padding:8px 10px;}
+.cal-item .d{font-family:'JetBrains Mono',monospace; font-size:11px; color:var(--accent-3);}
+.cal-item .t{font-size:13px; font-weight:600; margin-top:2px;}
+.cal-item .l{font-size:11px; color:var(--text-dim); margin-top:2px;}
+
+/* ---------- Polar align ---------- */
+.polar-grid{display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:14px;}
+.stat-box{background:var(--bg-panel-2); border-radius:10px; padding:10px 12px;}
+.stat-box .k{font-size:10px; color:var(--text-dim); text-transform:uppercase; letter-spacing:.5px;}
+.stat-box .v{font-family:'JetBrains Mono',monospace; font-size:16px; margin-top:3px; color:var(--accent);}
+.clockface{width:200px; height:200px; margin:6px auto;}
+.note{font-size:11px; color:var(--text-dim); line-height:1.5; margin-top:10px; border-top:1px dashed var(--line); padding-top:10px;}
+
+/* ---------- Ephemeris sun/moon ---------- */
+.ephem-grid{display:grid; grid-template-columns:1fr 1fr; gap:10px;}
+.ephem-col h3{font-family:'Space Grotesk',sans-serif; font-size:13px; margin:0 0 8px 0; display:flex; align-items:center; gap:6px;}
+.ephem-line{display:flex; justify-content:space-between; font-size:12.5px; padding:5px 0; border-bottom:1px solid var(--line);}
+.ephem-line:last-child{border-bottom:0;}
+.ephem-line .l{color:var(--text-dim);}
+.ephem-line .v{font-family:'JetBrains Mono',monospace;}
+.moon-phase{display:flex; align-items:center; gap:10px; margin-top:12px; padding-top:12px; border-top:1px solid var(--line);}
+.moon-disc{width:38px; height:38px; border-radius:50%; background:var(--bg); position:relative; overflow:hidden; border:1px solid var(--line); flex-shrink:0;}
+.moon-disc .lit{position:absolute; top:0; height:100%; background:var(--accent-2);}
+
+/* ---------- ISS ---------- */
+.iss-item{display:flex; align-items:center; gap:12px; background:var(--bg-panel-2); border-radius:10px; padding:10px 12px; margin-bottom:8px;}
+.iss-item:last-child{margin-bottom:0;}
+.iss-badge{width:40px; height:40px; border-radius:50%; background:var(--bg); display:flex; align-items:center; justify-content:center; font-size:18px; flex-shrink:0; border:1px solid var(--line);}
+.iss-main{flex:1;}
+.iss-date{font-family:'JetBrains Mono',monospace; font-size:12.5px; font-weight:700;}
+.iss-detail{font-size:11px; color:var(--text-dim); margin-top:2px;}
+.iss-tag{font-size:10px; padding:3px 8px; border-radius:20px; background:var(--accent); color:#03251f; font-weight:700; flex-shrink:0;}
+.iss-tag.dim{background:var(--bg); color:var(--text-dim); border:1px solid var(--line); font-weight:500;}
+body.night .iss-tag{color:#1a0000;}
+
+/* ---------- Footer ---------- */
+footer{
+  margin-top:30px; padding:20px 0 30px; border-top:1px solid var(--line);
+  text-align:center; font-size:11.5px; color:var(--text-dim);
+}
+footer a{color:var(--accent); text-decoration:none;}
+footer .assoc{font-family:'Space Grotesk',sans-serif; font-size:13px; color:var(--text); margin-bottom:6px;}
+
+.msg-error{font-size:12px; color:var(--danger); padding:8px 0;}
+.msg-info{font-size:11.5px; color:var(--text-dim); padding:8px 0;}
+
+/* ---------- Location banner ---------- */
+.loc-banner{
+  background:linear-gradient(90deg, var(--bg-panel-2), var(--bg-panel));
+  border-bottom:1px solid var(--line);
+}
+.loc-banner-inner{
+  display:flex; align-items:center; gap:10px; padding:9px 14px; flex-wrap:wrap;
+}
+.loc-banner-icon{font-size:16px; flex-shrink:0;}
+.loc-banner-text{font-size:12px; color:var(--text); flex:1; min-width:180px;}
+.loc-banner-btns{display:flex; gap:8px; flex-shrink:0;}
+button.pill.accent{background:var(--accent); color:#03251f; border-color:var(--accent); font-weight:600;}
+body.night button.pill.accent{color:#1a0000;}
+.spin{display:inline-block; width:12px; height:12px; border:2px solid var(--line); border-top-color:var(--accent); border-radius:50%; animation:sp .8s linear infinite;}
+@keyframes sp{to{transform:rotate(360deg);}}
+</style>
+</head>
+<body>
+
+<div id="locBanner" class="loc-banner" style="display:none;">
+  <div class="wrap loc-banner-inner">
+    <span class="loc-banner-icon">📍</span>
+    <span class="loc-banner-text">Utiliser votre position réelle au lieu de Vesoul (carte du ciel, GoTo, éphémérides, ISS) ?</span>
+    <div class="loc-banner-btns">
+      <button class="pill accent" onclick="bannerAllow()">Autoriser</button>
+      <button class="pill" onclick="bannerDecline()">Non, garder Vesoul</button>
+    </div>
+  </div>
+</div>
+
+<header>
+  <div class="wrap headrow">
+    <img src="https://lh3.googleusercontent.com/sitesv/AA5AbUDdXsHsJ1B9IrDZlDXn1Aye_Ae9_x4LgoD_A_qJCuqdp0UoSO9ufBkt6WCTvGpAMIv17DkwgJRpyHKLLO3EcbE1moJAMmjUFydT6n_lxhtyeWLlSao6y4o7bJIpjeZXjOveZ1dkQ4wumvucehgeiNkqvWrzaW7vl23yB869ft_4g3v4BorkyIRh04GoRKA=w200"
+      alt="Logo Association d'Astronomie Vesoul" onerror="this.style.display='none'">
+    <div>
+      <h1>Asso. d'Astronomie Vesoul</h1>
+      <div class="sub" id="headSub">Haute-Saône · chargement de la position…</div>
+    </div>
+    <button class="night-toggle" id="installBtn" title="Installer l'application" aria-label="Installer l'application" style="display:none; font-size:15px;">⬇️</button>
+    <button class="night-toggle" id="nightToggle" title="Mode nocturne rouge" aria-label="Basculer mode nocturne">🌙</button>
+  </div>
+</header>
+
+<div id="iosInstallTip" class="loc-banner" style="display:none;">
+  <div class="wrap loc-banner-inner">
+    <span class="loc-banner-icon">📲</span>
+    <span class="loc-banner-text">Pour installer sur iPhone/iPad : appuyez sur <b>Partager</b> (le carré avec la flèche) puis <b>« Sur l'écran d'accueil »</b>.</span>
+    <div class="loc-banner-btns"><button class="pill" onclick="document.getElementById('iosInstallTip').style.display='none'">Compris</button></div>
+  </div>
+</div>
+
+<main class="wrap">
+
+  <!-- BORTLE -->
+  <section>
+    <div class="card">
+      <div class="bortle-row">
+        <div class="dial-wrap">
+          <svg viewBox="0 0 100 100">
+            <circle cx="50" cy="50" r="42" fill="none" stroke="var(--line)" stroke-width="8"/>
+            <circle id="bortleArc" cx="50" cy="50" r="42" fill="none" stroke="var(--accent)" stroke-width="8"
+              stroke-linecap="round" stroke-dasharray="264" stroke-dashoffset="264" transform="rotate(-90 50 50)"/>
+          </svg>
+          <div class="bortle-num" id="bortleNum">–</div>
+        </div>
+        <div class="bortle-info">
+          <div class="bortle-label" id="bortleLabel">Échelle de Bortle</div>
+          <div class="bortle-desc" id="bortleDesc">Estimation de la pollution lumineuse au lieu où vous vous trouvez.</div>
+          <div class="loc-status"><span class="dot" id="locDot"></span><span id="locText">Position par défaut : Vesoul</span></div>
+        </div>
+      </div>
+      <div class="bortle-adjust">
+        <label for="bortleSlider">Ajuster manuellement</label>
+        <input type="range" id="bortleSlider" min="1" max="9" step="1" value="4">
+      </div>
+    </div>
+  </section>
+
+  <!-- 1. CARTE DU CIEL -->
+  <section>
+    <div class="sec-title"><span class="num">01</span><h2>Carte du ciel — en direct</h2></div>
+    <div class="sec-sub">Alignée sur votre position réelle (ou Vesoul par défaut)</div>
+    <div class="card">
+      <iframe class="skymap-frame" id="skyFrame" title="Carte du ciel interactive" allow="geolocation"></iframe>
+      <div class="skymap-ctrl">
+        <button class="pill" onclick="reloadSky('stereo')">Vue zénith</button>
+        <button class="pill" onclick="reloadSky('polar')">Vue polaire</button>
+        <button class="pill" onclick="useMyLocation()">📍 Ma position</button>
+        <button class="pill" onclick="window.open(skyFrame.src,'_blank')">Plein écran ↗</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- 2. AGENDA -->
+  <section>
+    <div class="sec-title"><span class="num">02</span><h2>Agenda du club</h2></div>
+    <div class="sec-sub">Événements et soirées d'observation</div>
+    <div class="card">
+      <div id="calListWrap">
+        <div class="msg-info" id="calStatus"><span class="spin"></span> Connexion à Google Calendar…</div>
+        <div class="cal-list" id="calList"></div>
+      </div>
+      <details style="margin-top:10px;">
+        <summary style="font-size:11px; color:var(--text-dim); cursor:pointer;">Activer les mises à jour API en direct (clé Google, optionnel)</summary>
+        <div style="margin-top:8px; font-size:11px; color:var(--text-dim); line-height:1.5;">
+          Sans clé API, l'agenda ci-dessus s'affiche via le widget Google intégré (mise à jour automatique toutes les ~30 min).
+          Pour un rafraîchissement en direct via l'API Google Calendar v3, entrez une clé API (Google Cloud Console → API Calendar activée, restreinte à ce domaine) :
+          <div style="display:flex; gap:6px; margin-top:6px;">
+            <input id="gcalKey" type="text" placeholder="Clé API Google" style="flex:1; background:var(--bg); border:1px solid var(--line); color:var(--text); border-radius:8px; padding:6px 8px; font-size:11px;">
+            <button class="pill" onclick="saveGcalKey()">Valider</button>
+          </div>
+        </div>
+      </details>
+      <iframe class="cal-frame" id="calFrame" style="margin-top:12px;" title="Agenda Google Calendar du club"></iframe>
+    </div>
+  </section>
+
+  <!-- 3. RAQUETTE GOTO -->
+  <section>
+    <div class="sec-title"><span class="num">03</span><h2>Réglages raquette GoTo</h2></div>
+    <div class="sec-sub">Données à saisir + position du viseur polaire</div>
+    <div class="card">
+      <div class="polar-grid">
+        <div class="stat-box"><div class="k">Latitude</div><div class="v" id="pLat">–</div></div>
+        <div class="stat-box"><div class="k">Longitude</div><div class="v" id="pLon">–</div></div>
+        <div class="stat-box"><div class="k">Date locale</div><div class="v" id="pDate">–</div></div>
+        <div class="stat-box"><div class="k">Heure locale</div><div class="v" id="pTime">–</div></div>
+        <div class="stat-box"><div class="k">Fuseau (UTC)</div><div class="v" id="pTz">–</div></div>
+        <div class="stat-box"><div class="k">Temps sidéral local</div><div class="v" id="pLst">–</div></div>
+      </div>
+      <div class="clockface" id="clockface"></div>
+      <div class="polar-grid" style="margin-top:0;">
+        <div class="stat-box"><div class="k">Angle horaire Polaris</div><div class="v" id="pHa">–</div></div>
+        <div class="stat-box"><div class="k">Position cadran</div><div class="v" id="pClockPos">–</div></div>
+      </div>
+      <div class="note">
+        La position indiquée est l'angle horaire de Polaris projeté sur un cadran (0h = haut). Selon le modèle de viseur polaire (SynScan, Skywatcher, autre), l'orientation réelle dans l'oculaire peut être inversée ou tournée : calibrez une fois sur une étoile connue, puis fiez-vous à cette valeur pour les soirées suivantes. Pour l'initialisation de la raquette : entrez la date/heure/fuseau et les coordonnées ci-dessus telles quelles.
+      </div>
+    </div>
+  </section>
+
+  <!-- 4. EPHEMERIDES SOLEIL/LUNE -->
+  <section>
+    <div class="sec-title"><span class="num">04</span><h2>Éphémérides du jour</h2></div>
+    <div class="sec-sub">Soleil, Lune, crépuscules et aube astronomiques</div>
+    <div class="card">
+      <div class="ephem-grid">
+        <div class="ephem-col">
+          <h3>☀️ Soleil</h3>
+          <div class="ephem-line"><span class="l">Lever</span><span class="v" id="sunRise">–</span></div>
+          <div class="ephem-line"><span class="l">Coucher</span><span class="v" id="sunSet">–</span></div>
+          <div class="ephem-line"><span class="l">Aube astro.</span><span class="v" id="dawnAstro">–</span></div>
+          <div class="ephem-line"><span class="l">Crép. astro.</span><span class="v" id="duskAstro">–</span></div>
+          <div class="ephem-line"><span class="l">Midi solaire</span><span class="v" id="solarNoon">–</span></div>
+        </div>
+        <div class="ephem-col">
+          <h3>🌙 Lune</h3>
+          <div class="ephem-line"><span class="l">Lever</span><span class="v" id="moonRise">–</span></div>
+          <div class="ephem-line"><span class="l">Coucher</span><span class="v" id="moonSet">–</span></div>
+          <div class="ephem-line"><span class="l">Phase</span><span class="v" id="moonPhaseName">–</span></div>
+          <div class="ephem-line"><span class="l">Illumination</span><span class="v" id="moonIllum">–</span></div>
+        </div>
+      </div>
+      <div class="moon-phase">
+        <div class="moon-disc"><div class="lit" id="moonLit"></div></div>
+        <div style="font-size:11px; color:var(--text-dim);">Fenêtre d'observation la plus sombre entre le crépuscule et l'aube astronomiques (Soleil sous -18°).</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 5. ISS -->
+  <section>
+    <div class="sec-title"><span class="num">05</span><h2>Passages de la Station Spatiale (ISS)</h2></div>
+    <div class="sec-sub">Prochains survols visibles depuis votre position</div>
+    <div class="card">
+      <div id="issList">
+        <div class="msg-error"><span class="spin"></span> Calcul des trajectoires…</div>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="assoc">Association d'Astronomie Vesoul</div>
+  <div>70000 Vesoul · Haute-Saône</div>
+  <div style="margin-top:6px;">
+    <a href="https://www.astronomie70.fr" target="_blank" rel="noopener">astronomie70.fr</a>
+    &nbsp;·&nbsp;
+    <a href="https://sites.google.com/view/assoastrovesoul/lassociation/conditions-dutilisation" target="_blank" rel="noopener">Mentions légales</a>
+  </div>
+</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/suncalc@1.9.0/suncalc.js"></script>
+<script>
+/* ============================================================
+   ÉTAT & POSITION
+   ============================================================ */
+const DEFAULT_LOC = { lat: 47.6333, lon: 6.1546, label: "Vesoul (position par défaut)" };
+let state = { lat: DEFAULT_LOC.lat, lon: DEFAULT_LOC.lon, label: DEFAULT_LOC.label, geolocated: false };
+
+function fmtTime(d){
+  if(!d || isNaN(d.getTime())) return "—";
+  return d.toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit'});
+}
+function fmtDate(d){ return d.toLocaleDateString('fr-FR', {weekday:'short', day:'2-digit', month:'short'}); }
+
+/* ---------- Night mode ---------- */
+const nightToggle = document.getElementById('nightToggle');
+function applyNightState(){
+  const on = localStorage.getItem('astro_night') === '1';
+  document.body.classList.toggle('night', on);
+  nightToggle.textContent = on ? '🔴' : '🌙';
+}
+nightToggle.addEventListener('click', ()=>{
+  const on = document.body.classList.toggle('night');
+  localStorage.setItem('astro_night', on ? '1':'0');
+  nightToggle.textContent = on ? '🔴' : '🌙';
+});
+applyNightState();
+
+/* ============================================================
+   GÉOLOCALISATION
+   ============================================================ */
+function bannerAllow(){
+  localStorage.setItem('astro_loc_consent', 'granted');
+  document.getElementById('locBanner').style.display = 'none';
+  useMyLocation();
+}
+function bannerDecline(){
+  localStorage.setItem('astro_loc_consent', 'declined');
+  document.getElementById('locBanner').style.display = 'none';
+}
+function initLocationBanner(){
+  const consent = localStorage.getItem('astro_loc_consent');
+  if(consent === 'granted'){
+    useMyLocation(); // ré-autorisé précédemment : on relocalise silencieusement (pas de nouveau prompt navigateur)
+  } else if(consent !== 'declined'){
+    document.getElementById('locBanner').style.display = 'block';
+  }
+}
+
+function useMyLocation(){
+  const locText = document.getElementById('locText');
+  const locDot = document.getElementById('locDot');
+  if(!navigator.geolocation){
+    locText.textContent = "Géolocalisation non disponible — position Vesoul utilisée";
+    return;
+  }
+  locText.textContent = "Localisation en cours…";
+  navigator.geolocation.getCurrentPosition(pos=>{
+    state.lat = pos.coords.latitude;
+    state.lon = pos.coords.longitude;
+    state.label = "Votre position";
+    state.geolocated = true;
+    locDot.classList.add('ok');
+    locText.textContent = `Position détectée (±${Math.round(pos.coords.accuracy)} m)`;
+    refreshAll();
+  }, err=>{
+    locText.textContent = "Position refusée — Vesoul utilisée par défaut";
+    if(localStorage.getItem('astro_loc_consent') === 'granted'){
+      localStorage.setItem('astro_loc_consent', 'declined');
+    }
+  }, {enableHighAccuracy:true, timeout:8000});
+}
+
+/* ============================================================
+   ÉCHELLE DE BORTLE (estimation)
+   Pas d'API publique gratuite de carte de pollution lumineuse en temps réel.
+   On propose une estimation à partir de sites connus autour de la Haute-Saône,
+   ajustable manuellement (mémorisée localement).
+   ============================================================ */
+const KNOWN_SITES = [
+  {lat:47.6333, lon:6.1546, r:0.05, bortle:5, name:"Vesoul (centre-ville)"},
+  {lat:47.66, lon:6.14, r:0.15, bortle:4, name:"Périphérie de Vesoul"},
+];
+function estimateBortle(lat, lon){
+  for(const s of KNOWN_SITES){
+    const d = Math.hypot(lat-s.lat, lon-s.lon);
+    if(d < s.r) return {value:s.bortle, name:s.name};
+  }
+  return {value:4, name:"Zone rurale de Haute-Saône (estimation)"};
+}
+const BORTLE_DESC = {
+  1:"Ciel exceptionnellement noir — sites d'exception",
+  2:"Ciel très sombre — zone rurale préservée",
+  3:"Ciel rural — Voie lactée bien visible",
+  4:"Rural/périurbain — légère lueur à l'horizon",
+  5:"Périurbain — Voie lactée pâle",
+  6:"Ciel de ville moyenne — pollution lumineuse marquée",
+  7:"Transition ville/banlieue — ciel orangé",
+  8:"Ciel de ville — peu d'étoiles visibles",
+  9:"Centre-ville — ciel très pollué"
+};
+function updateBortleUI(value, sourceLabel){
+  document.getElementById('bortleNum').textContent = value;
+  document.getElementById('bortleLabel').textContent = `Bortle ${value} / 9`;
+  document.getElementById('bortleDesc').textContent = BORTLE_DESC[value] + (sourceLabel ? ` · ${sourceLabel}` : "");
+  const arc = document.getElementById('bortleArc');
+  const circumference = 264;
+  const frac = value/9;
+  arc.setAttribute('stroke-dashoffset', circumference - (circumference*frac));
+}
+const slider = document.getElementById('bortleSlider');
+const savedBortle = localStorage.getItem('astro_bortle_manual');
+function initBortle(){
+  if(savedBortle){
+    slider.value = savedBortle;
+    updateBortleUI(parseInt(savedBortle), "réglage manuel");
+  } else {
+    const est = estimateBortle(state.lat, state.lon);
+    slider.value = est.value;
+    updateBortleUI(est.value, "estimation — " + est.name);
+  }
+}
+slider.addEventListener('input', ()=>{
+  localStorage.setItem('astro_bortle_manual', slider.value);
+  updateBortleUI(parseInt(slider.value), "réglage manuel");
+});
+
+/* ============================================================
+   1. CARTE DU CIEL — VirtualSky (embed)
+   ============================================================ */
+const skyFrame = document.getElementById('skyFrame');
+function reloadSky(projection){
+  const p = projection || (window.__skyProj || 'stereo');
+  window.__skyProj = p;
+  const params = new URLSearchParams({
+    longitude: state.lon.toFixed(4),
+    latitude: state.lat.toFixed(4),
+    live: 'true',
+    projection: p,
+    constellations: 'true',
+    constellationlabels: 'true',
+    showstarlabels: 'true',
+    showplanets: 'true',
+    showplanetlabels: 'true',
+    showdate: 'true',
+    showposition: 'false',
+    cardinalpoints: 'true',
+    gridlines_eq: 'false',
+    az: '180',
+    lang: 'fr'
+  });
+  skyFrame.src = "https://virtualsky.lco.global/embed/index.html?" + params.toString();
+}
+
+/* ============================================================
+   2. AGENDA — Google Calendar
+   ============================================================ */
+const CAL_ID = "astronomie70.fr_b8gpgo3eucngcubik8cdnc2ht8@group.calendar.google.com";
+const calFrame = document.getElementById('calFrame');
+calFrame.src = `https://calendar.google.com/calendar/embed?src=${encodeURIComponent(CAL_ID)}&ctz=Europe%2FParis&mode=AGENDA&showTitle=0&showPrint=0&showTabs=0&showCalendars=0&showNav=1`;
+
+function saveGcalKey(){
+  const key = document.getElementById('gcalKey').value.trim();
+  if(key){ localStorage.setItem('astro_gcal_key', key); loadCalendarEvents(); }
+}
+async function loadCalendarEvents(){
+  const statusEl = document.getElementById('calStatus');
+  const listEl = document.getElementById('calList');
+  const key = localStorage.getItem('astro_gcal_key');
+  if(!key){
+    statusEl.className = 'msg-info';
+    statusEl.textContent = "Aperçu ci-dessous (widget Google). Ajoutez une clé API pour la liste en direct ↓";
+    return;
+  }
+  try{
+    statusEl.className = 'msg-info';
+    statusEl.innerHTML = '<span class="spin"></span> Chargement des événements…';
+    const now = new Date().toISOString();
+    const url = `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(CAL_ID)}/events?key=${key}&timeMin=${now}&singleEvents=true&orderBy=startTime&maxResults=8`;
+    const res = await fetch(url);
+    if(!res.ok) throw new Error("Erreur API (" + res.status + ")");
+    const data = await res.json();
+    listEl.innerHTML = "";
+    (data.items||[]).forEach(ev=>{
+      const start = ev.start.dateTime || ev.start.date;
+      const d = new Date(start);
+      const div = document.createElement('div');
+      div.className = 'cal-item';
+      div.innerHTML = `<div class="d">${fmtDate(d)}${ev.start.dateTime ? ' · '+fmtTime(d) : ''}</div>
+        <div class="t">${ev.summary || 'Événement'}</div>
+        <div class="l">${ev.location || ''}</div>`;
+      listEl.appendChild(div);
+    });
+    statusEl.textContent = data.items && data.items.length ? "" : "Aucun événement à venir.";
+  }catch(e){
+    statusEl.className = 'msg-error';
+    statusEl.textContent = "⚠ Clé API invalide ou API Calendar non activée pour ce domaine.";
+  }
+}
+
+/* ============================================================
+   3. RAQUETTE GOTO — LST + Polaris hour angle
+   ============================================================ */
+const POLARIS_RA_HOURS = 2 + 31/60 + 49/3600; // RA J2000 approx (dérive lente)
+
+function julianDate(d){
+  return (d.getTime()/86400000) + 2440587.5;
+}
+function gst(d){
+  const jd = julianDate(d);
+  const T = (jd - 2451545.0)/36525;
+  let gstDeg = 280.46061837 + 360.98564736629*(jd-2451545.0) + 0.000387933*T*T - (T*T*T)/38710000;
+  gstDeg = ((gstDeg % 360)+360) % 360;
+  return gstDeg/15; // hours
+}
+function lst(d, lonDeg){
+  let l = gst(d) + lonDeg/15;
+  l = ((l % 24)+24)%24;
+  return l;
+}
+function drawClockface(haHours){
+  const el = document.getElementById('clockface');
+  const angle = (haHours/24)*360; // 0h = top, clockwise
+  el.innerHTML = `
+    <svg viewBox="0 0 200 200" width="100%" height="100%">
+      <circle cx="100" cy="100" r="92" fill="none" stroke="var(--line)" stroke-width="2"/>
+      ${[...Array(12)].map((_,i)=>{
+        const a = i*30*Math.PI/180;
+        const x1 = 100+82*Math.sin(a), y1=100-82*Math.cos(a);
+        const x2 = 100+92*Math.sin(a), y2=100-92*Math.cos(a);
+        return `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="var(--text-dim)" stroke-width="2"/>`;
+      }).join('')}
+      <circle cx="100" cy="100" r="4" fill="var(--accent)"/>
+      <line x1="100" y1="100" x2="${100+78*Math.sin(angle*Math.PI/180)}" y2="${100-78*Math.cos(angle*Math.PI/180)}"
+        stroke="var(--accent-2)" stroke-width="4" stroke-linecap="round"/>
+      <circle cx="${100+78*Math.sin(angle*Math.PI/180)}" cy="${100-78*Math.cos(angle*Math.PI/180)}" r="6" fill="var(--accent-2)"/>
+      <text x="100" y="18" text-anchor="middle" font-size="10" fill="var(--text-dim)" font-family="JetBrains Mono">0h</text>
+      <text x="188" y="104" text-anchor="middle" font-size="10" fill="var(--text-dim)" font-family="JetBrains Mono">6h</text>
+      <text x="100" y="196" text-anchor="middle" font-size="10" fill="var(--text-dim)" font-family="JetBrains Mono">12h</text>
+      <text x="12" y="104" text-anchor="middle" font-size="10" fill="var(--text-dim)" font-family="JetBrains Mono">18h</text>
+    </svg>`;
+}
+function updatePolarPanel(){
+  const now = new Date();
+  document.getElementById('pLat').textContent = state.lat.toFixed(4)+"°";
+  document.getElementById('pLon').textContent = state.lon.toFixed(4)+"°";
+  document.getElementById('pDate').textContent = now.toLocaleDateString('fr-FR');
+  document.getElementById('pTime').textContent = now.toLocaleTimeString('fr-FR');
+  const tzOffset = -now.getTimezoneOffset()/60;
+  document.getElementById('pTz').textContent = (tzOffset>=0?'+':'') + tzOffset;
+  const l = lst(now, state.lon);
+  const lh = Math.floor(l), lm = Math.floor((l-lh)*60);
+  document.getElementById('pLst').textContent = `${lh}h${String(lm).padStart(2,'0')}`;
+  let ha = l - POLARIS_RA_HOURS;
+  ha = ((ha%24)+24)%24;
+  const hh = Math.floor(ha), hm = Math.floor((ha-hh)*60);
+  document.getElementById('pHa').textContent = `${hh}h${String(hm).padStart(2,'0')}`;
+  const clockHour = ((ha/24)*12);
+  document.getElementById('pClockPos').textContent = clockHour.toFixed(1) + " h (cadran)";
+  drawClockface(ha);
+}
+
+/* ============================================================
+   4. ÉPHÉMÉRIDES SOLEIL / LUNE (SunCalc)
+   ============================================================ */
+function updateEphemeris(){
+  const now = new Date();
+  const times = SunCalc.getTimes(now, state.lat, state.lon);
+  document.getElementById('sunRise').textContent = fmtTime(times.sunrise);
+  document.getElementById('sunSet').textContent = fmtTime(times.sunset);
+  document.getElementById('dawnAstro').textContent = fmtTime(times.nightEnd);
+  document.getElementById('duskAstro').textContent = fmtTime(times.night);
+  document.getElementById('solarNoon').textContent = fmtTime(times.solarNoon);
+
+  const moonTimes = SunCalc.getMoonTimes(now, state.lat, state.lon);
+  document.getElementById('moonRise').textContent = moonTimes.rise ? fmtTime(moonTimes.rise) : "—";
+  document.getElementById('moonSet').textContent = moonTimes.set ? fmtTime(moonTimes.set) : "—";
+
+  const illum = SunCalc.getMoonIllumination(now);
+  const pct = Math.round(illum.fraction*100);
+  document.getElementById('moonIllum').textContent = pct + " %";
+  const phaseNames = ["Nouvelle lune","Premier croissant","Premier quartier","Gibbeuse croissante","Pleine lune","Gibbeuse décroissante","Dernier quartier","Dernier croissant"];
+  const idx = Math.round(illum.phase*8) % 8;
+  document.getElementById('moonPhaseName').textContent = phaseNames[idx];
+  const lit = document.getElementById('moonLit');
+  const waxing = illum.phase < 0.5;
+  lit.style.width = (pct)+"%";
+  lit.style.left = waxing ? "auto" : "0";
+  lit.style.right = waxing ? "0" : "auto";
+}
+
+/* ============================================================
+   5. ISS — polluxlabs iss-api (gratuite, sans clé, CORS activé)
+   ============================================================ */
+async function loadISS(){
+  const el = document.getElementById('issList');
+  try{
+    const url = `https://iss-api.polluxlabs.io/iss-pass?lat=${state.lat.toFixed(4)}&lon=${state.lon.toFixed(4)}&n=6&days_ahead=10`;
+    const res = await fetch(url);
+    if(!res.ok) throw new Error("HTTP "+res.status);
+    const data = await res.json();
+    if(!data.passes || !data.passes.length){
+      el.innerHTML = '<div class="sec-sub">Aucun passage prévu dans les 10 prochains jours.</div>';
+      return;
+    }
+    el.innerHTML = "";
+    data.passes.forEach(p=>{
+      const rise = new Date(p.rise.time);
+      const div = document.createElement('div');
+      div.className = 'iss-item';
+      div.innerHTML = `
+        <div class="iss-badge">🛰️</div>
+        <div class="iss-main">
+          <div class="iss-date">${fmtDate(rise)} · ${fmtTime(rise)}</div>
+          <div class="iss-detail">Élévation max ${Math.round(p.culmination.elevation_deg)}° · ${p.rise.compass} → ${p.set.compass} · durée ~${Math.round((new Date(p.set.time)-rise)/1000)}s</div>
+        </div>
+        <div class="iss-tag ${p.visible?'':'dim'}">${p.visible ? 'Visible' : 'De jour'}</div>`;
+      el.appendChild(div);
+    });
+  }catch(e){
+    el.innerHTML = '<div class="msg-error">⚠ Service de prédiction ISS momentanément indisponible. Réessayez plus tard.</div>';
+  }
+}
+
+/* ============================================================
+   INIT
+   ============================================================ */
+function refreshAll(){
+  document.getElementById('headSub').textContent = `Haute-Saône · ${state.label}`;
+  initBortle();
+  reloadSky();
+  updatePolarPanel();
+  updateEphemeris();
+  loadISS();
+}
+refreshAll();
+loadCalendarEvents();
+initLocationBanner();
+
+/* ============================================================
+   PWA — installation & mode hors-ligne
+   ============================================================ */
+if('serviceWorker' in navigator){
+  window.addEventListener('load', ()=>{
+    navigator.serviceWorker.register('./service-worker.js').catch(()=>{});
+  });
+}
+
+let deferredInstallPrompt = null;
+const installBtn = document.getElementById('installBtn');
+
+window.addEventListener('beforeinstallprompt', (e)=>{
+  // Android / Chrome / Edge : le navigateur propose une installation native
+  e.preventDefault();
+  deferredInstallPrompt = e;
+  installBtn.style.display = 'flex';
+});
+installBtn.addEventListener('click', async ()=>{
+  if(deferredInstallPrompt){
+    deferredInstallPrompt.prompt();
+    await deferredInstallPrompt.userChoice;
+    deferredInstallPrompt = null;
+    installBtn.style.display = 'none';
+  }
+});
+window.addEventListener('appinstalled', ()=>{ installBtn.style.display = 'none'; });
+
+// iOS Safari n'a pas de prompt natif : on affiche une astuce une seule fois
+const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
+const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+if(isIOS && !isStandalone && !localStorage.getItem('astro_ios_tip_seen')){
+  document.getElementById('iosInstallTip').style.display = 'block';
+  localStorage.setItem('astro_ios_tip_seen', '1');
+}
+setInterval(updatePolarPanel, 30000);
+setInterval(loadISS, 10*60*1000);
+</script>
+</body>
+</html>
