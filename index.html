@@ -156,6 +156,25 @@ button.pill{
 
 /* ---------- ISS ---------- */
 .iss-item{display:flex; align-items:center; gap:12px; background:var(--bg-panel-2); border-radius:10px; padding:10px 12px; margin-bottom:8px;}
+
+/* ---------- Conditions d'observation (seeing/transparence/Kp) ---------- */
+.cond-block{margin-bottom:6px;}
+.cond-head{display:flex; justify-content:space-between; align-items:baseline; margin-bottom:8px;}
+.cond-label{font-family:'Space Grotesk',sans-serif; font-size:13px; font-weight:600;}
+.cond-detail{font-size:11px; color:var(--text-dim); line-height:1.5;}
+.vor-indicator{display:flex; align-items:center; gap:10px; margin-bottom:6px;}
+.vor-light{width:20px; height:20px; border-radius:50%; flex-shrink:0; background:var(--line); box-shadow:inset 0 0 0 2px rgba(255,255,255,.08);}
+.vor-light.green{background:#4ade80; box-shadow:0 0 10px 1px #4ade8099, inset 0 0 0 2px rgba(255,255,255,.15);}
+.vor-light.orange{background:var(--accent-2); box-shadow:0 0 10px 1px #f5b34299, inset 0 0 0 2px rgba(255,255,255,.15);}
+.vor-light.red{background:var(--danger); box-shadow:0 0 10px 1px #ef535099, inset 0 0 0 2px rgba(255,255,255,.15);}
+.vor-status{font-family:'Space Grotesk',sans-serif; font-size:14px; font-weight:700;}
+.vor-status.green{color:#4ade80;}
+.vor-status.orange{color:var(--accent-2);}
+.vor-status.red{color:var(--danger);}
+.soho-grid{display:grid; grid-template-columns:1fr 1fr; gap:10px; margin:8px 0;}
+.soho-img{width:100%; aspect-ratio:1/1; object-fit:cover; border-radius:10px; background:#000; display:block; border:1px solid var(--line);}
+.soho-caption{font-size:10.5px; color:var(--text-dim); text-align:center; margin-top:4px;}
+body.night .soho-img{filter:none;} /* les images du Soleil restent lisibles même en mode nocturne */
 .iss-item:last-child{margin-bottom:0;}
 .iss-badge{width:40px; height:40px; border-radius:50%; background:var(--bg); display:flex; align-items:center; justify-content:center; font-size:18px; flex-shrink:0; border:1px solid var(--line);}
 .iss-main{flex:1;}
@@ -359,9 +378,56 @@ body.night button.pill.accent{color:#1a0000;}
     </div>
   </section>
 
-  <!-- 5. ISS -->
+  <!-- 5. CONDITIONS D'OBSERVATION : seeing, transparence, Kp, Soleil en direct -->
   <section>
-    <div class="sec-title"><span class="num">05</span><h2>Passages de la Station Spatiale (ISS)</h2></div>
+    <div class="sec-title"><span class="num">05</span><h2>Conditions d'observation</h2></div>
+    <div class="sec-sub">Turbulence, transparence du ciel (estimation) et activité géomagnétique</div>
+    <div class="card">
+      <div class="cond-block">
+        <div class="cond-head">
+          <span class="cond-label">🌫️ Seeing (turbulence)</span>
+        </div>
+        <div class="vor-indicator"><span class="vor-light" id="seeingLight"></span><span class="vor-status" id="seeingValue">–</span></div>
+        <div class="cond-detail" id="seeingDetail">Chargement…</div>
+      </div>
+      <div class="cond-block" style="margin-top:14px;">
+        <div class="cond-head">
+          <span class="cond-label">🔭 Transparence du ciel</span>
+        </div>
+        <div class="vor-indicator"><span class="vor-light" id="transpLight"></span><span class="vor-status" id="transpValue">–</span></div>
+        <div class="cond-detail" id="transpDetail">Chargement…</div>
+      </div>
+      <div class="note" id="condNote">Estimation maison à partir des prévisions Open-Meteo (vent en altitude ≈ courant-jet pour le seeing, nébulosité + humidité pour la transparence). Ce n'est pas une mesure professionnelle Pickering/Antoniadi — à recouper avec le ressenti sur site.</div>
+
+      <div class="cond-block" style="margin-top:16px; padding-top:16px; border-top:1px solid var(--line);">
+        <div class="cond-head">
+          <span class="cond-label">🧲 Indice Kp (activité géomagnétique)</span>
+        </div>
+        <div class="vor-indicator"><span class="vor-light" id="kpLight"></span><span class="vor-status" id="kpValue">–</span></div>
+        <div class="cond-detail" id="kpDetail">Chargement…</div>
+      </div>
+      <div class="note">Donnée officielle NOAA SWPC. En Haute-Saône (latitude moyenne), une aurore visible à l'œil nu nécessite en général un Kp ≥ 7-8, avec un ciel bien dégagé et noir plein nord.</div>
+
+      <div class="cond-block" style="margin-top:16px; padding-top:16px; border-top:1px solid var(--line);">
+        <div class="cond-head"><span class="cond-label">☀️ Le Soleil en direct (NASA SDO/SOHO)</span></div>
+        <div class="soho-grid">
+          <div>
+            <img class="soho-img" id="sohoAlternating" alt="Soleil : taches solaires / chromosphère" onerror="this.parentElement.style.display='none'">
+            <div class="soho-caption" id="sohoAlternatingCaption">Taches solaires (lumière visible)</div>
+          </div>
+          <div>
+            <img class="soho-img" id="sohoLasco" alt="Couronne solaire (LASCO C3)" onerror="this.parentElement.style.display='none'">
+            <div class="soho-caption">Couronne (éruptions/CME)</div>
+          </div>
+        </div>
+        <div class="cond-detail">Image de gauche : alterne toutes les 3 s entre taches solaires (SDO/HMI, lumière visible) et vue chromosphérique proche H-alpha (SDO/AIA 304Å UV) — pratique pour l'animation publique. <a href="https://sdo.gsfc.nasa.gov" target="_blank" rel="noopener" style="color:var(--accent);">sdo.gsfc.nasa.gov</a> · NASA</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 6. ISS -->
+  <section>
+    <div class="sec-title"><span class="num">06</span><h2>Passages de la Station Spatiale (ISS)</h2></div>
     <div class="sec-sub">Prochains survols visibles depuis votre position</div>
     <div class="card">
       <div id="issList">
@@ -746,6 +812,149 @@ function updateEphemeris(){
 /* ============================================================
    5. ISS — polluxlabs iss-api (gratuite, sans clé, CORS activé)
    ============================================================ */
+/* ============================================================
+   CONDITIONS D'OBSERVATION — seeing/transparence (Open-Meteo, estimation maison)
+   ============================================================ */
+function setVor(prefix, tone /* 'green'|'orange'|'red' */, label){
+  const light = document.getElementById(prefix+'Light');
+  const value = document.getElementById(prefix+'Value');
+  if(light) light.className = 'vor-light ' + tone;
+  if(value){ value.textContent = label; value.className = 'vor-status ' + tone; }
+}
+
+async function loadSeeingTransparency(){
+  const seeingDetail = document.getElementById('seeingDetail');
+  const transpDetail = document.getElementById('transpDetail');
+  try{
+    const params = new URLSearchParams({
+      latitude: state.lat.toFixed(4),
+      longitude: state.lon.toFixed(4),
+      hourly: 'cloudcover,cloudcover_low,cloudcover_mid,cloudcover_high,relativehumidity_2m,windspeed_250hPa',
+      timezone: 'auto',
+      forecast_days: '2'
+    });
+    const res = await fetch(`https://api.open-meteo.com/v1/forecast?${params.toString()}`);
+    if(!res.ok) throw new Error('HTTP '+res.status);
+    const data = await res.json();
+    const times = data.hourly.time;
+    const now = new Date();
+    // index de l'heure la plus proche de maintenant
+    let idx = 0, bestDiff = Infinity;
+    times.forEach((t,i)=>{ const diff = Math.abs(new Date(t)-now); if(diff<bestDiff){bestDiff=diff; idx=i;} });
+
+    // --- SEEING : basé sur le vent à 250 hPa (proxy du courant-jet) ---
+    const jetWind = data.hourly.windspeed_250hPa[idx]; // km/h
+    let seeingTone, seeingLabel;
+    if(jetWind < 90){ seeingTone='green'; seeingLabel="Bon"; }
+    else if(jetWind < 150){ seeingTone='orange'; seeingLabel="Moyen"; }
+    else { seeingTone='red'; seeingLabel="Turbulent"; }
+    setVor('seeing', seeingTone, seeingLabel);
+    seeingDetail.textContent = `Vent en altitude (≈250 hPa, courant-jet) : ${Math.round(jetWind)} km/h`;
+
+    // --- TRANSPARENCE : basée sur nébulosité + humidité ---
+    const cloud = data.hourly.cloudcover[idx];
+    const humidity = data.hourly.relativehumidity_2m[idx];
+    let transpTone, transpLabel;
+    if(cloud < 30 && humidity < 75){ transpTone='green'; transpLabel="Bonne"; }
+    else if(cloud < 70){ transpTone='orange'; transpLabel="Moyenne"; }
+    else { transpTone='red'; transpLabel="Mauvaise"; }
+    setVor('transp', transpTone, transpLabel);
+    transpDetail.textContent = `Nébulosité : ${Math.round(cloud)} % · Humidité : ${Math.round(humidity)} %`;
+  }catch(e){
+    seeingDetail.textContent = "⚠ Données Open-Meteo indisponibles pour le moment.";
+    transpDetail.textContent = "⚠ Données Open-Meteo indisponibles pour le moment.";
+  }
+}
+
+/* ============================================================
+   INDICE KP — NOAA SWPC (données officielles temps réel)
+   ============================================================ */
+async function loadKpIndex(){
+  const kpDetail = document.getElementById('kpDetail');
+  const applyKp = (kp, timeLabel, isStale)=>{
+    const tone = kp >= 7 ? 'red' : (kp >= 5 ? 'orange' : 'green');
+    setVor('kp', tone, `Kp ${kp.toFixed(1)}`);
+    let statusTxt;
+    if(kp >= 7) statusTxt = "Tempête géomagnétique forte — aurore potentiellement visible depuis la Haute-Saône si le ciel est dégagé plein nord.";
+    else if(kp >= 5) statusTxt = "Activité modérée — aurore peu probable à cette latitude, réservé aux événements exceptionnels.";
+    else statusTxt = "Activité calme — pas d'aurore attendue à cette latitude.";
+    kpDetail.textContent = `${statusTxt} (mesure ${timeLabel}${isStale ? ' · ⚠ dernière valeur connue, service NOAA injoignable actuellement' : ''})`;
+  };
+  // 1) source principale : Kp observé temps réel
+  try{
+    const res = await fetch('https://services.swpc.noaa.gov/products/noaa-planetary-k-index.json');
+    if(!res.ok) throw new Error('HTTP '+res.status);
+    const rows = await res.json();
+    const last = rows[rows.length-1];
+    const kp = parseFloat(last[1]);
+    const t = new Date(last[0].replace(' ', 'T')+'Z');
+    localStorage.setItem('astro_kp_cache', JSON.stringify({kp, time:last[0]}));
+    applyKp(kp, fmtTime(t)+' UTC', false);
+    return;
+  }catch(e){ /* on tente le repli */ }
+  // 2) repli : prévision NOAA (contient aussi les valeurs récentes estimées)
+  try{
+    const res2 = await fetch('https://services.swpc.noaa.gov/products/noaa-planetary-k-index-forecast.json');
+    if(!res2.ok) throw new Error('HTTP '+res2.status);
+    const rows2 = await res2.json();
+    const last2 = rows2[rows2.length-1];
+    const kp2 = parseFloat(last2[1]);
+    localStorage.setItem('astro_kp_cache', JSON.stringify({kp:kp2, time:last2[0]}));
+    applyKp(kp2, "prévision NOAA", true);
+    return;
+  }catch(e){ /* on tente le cache local */ }
+  // 3) dernier recours : dernière valeur connue en cache local
+  const cached = localStorage.getItem('astro_kp_cache');
+  if(cached){
+    try{
+      const {kp, time} = JSON.parse(cached);
+      applyKp(kp, time, true);
+      return;
+    }catch(e){}
+  }
+  setVor('kp', 'orange', '–');
+  kpDetail.textContent = "⚠ Service NOAA SWPC injoignable, et aucune valeur en cache pour l'instant.";
+}
+
+/* ============================================================
+   IMAGES SOLAIRES EN DIRECT — SDO/SOHO NASA (simples <img>, pas d'API JSON)
+   ============================================================ */
+const SOHO_SUNSPOTS_URL = 'https://sdo.gsfc.nasa.gov/assets/img/latest/latest_512_HMIIC.jpg';
+const SOHO_HALPHA_LIKE_URL = 'https://sdo.gsfc.nasa.gov/assets/img/latest/latest_512_0304.jpg';
+const SOHO_CORONA_URL = 'https://soho.nascom.nasa.gov/data/realtime/c3/512/latest.jpg';
+let sohoAlternatingState = 0; // 0 = sunspots, 1 = chromosphère/H-alpha
+let sohoCurrentBust = Date.now();
+let sohoUrlA = '', sohoUrlB = '';
+
+function loadSohoImages(){
+  sohoCurrentBust = Date.now(); // évite le cache navigateur pour avoir la dernière image, une seule fois toutes les 30 min
+  sohoUrlA = `${SOHO_SUNSPOTS_URL}?_=${sohoCurrentBust}`;
+  sohoUrlB = `${SOHO_HALPHA_LIKE_URL}?_=${sohoCurrentBust}`;
+  // préchargement silencieux des deux images pour une bascule instantanée ensuite
+  new Image().src = sohoUrlA;
+  new Image().src = sohoUrlB;
+  const img = document.getElementById('sohoAlternating');
+  const caption = document.getElementById('sohoAlternatingCaption');
+  if(img){ img.src = sohoUrlA; if(caption) caption.textContent = "Taches solaires (lumière visible)"; sohoAlternatingState = 0; }
+  const lasco = document.getElementById('sohoLasco');
+  if(lasco) lasco.src = `${SOHO_CORONA_URL}?_=${sohoCurrentBust}`;
+}
+
+function toggleSohoAlternating(){
+  const img = document.getElementById('sohoAlternating');
+  const caption = document.getElementById('sohoAlternatingCaption');
+  if(!img || !sohoUrlA) return;
+  sohoAlternatingState = sohoAlternatingState === 0 ? 1 : 0;
+  if(sohoAlternatingState === 0){
+    img.src = sohoUrlA;
+    if(caption) caption.textContent = "Taches solaires (lumière visible)";
+  } else {
+    img.src = sohoUrlB;
+    if(caption) caption.textContent = "Chromosphère, proche H-alpha (UV 304Å)";
+  }
+}
+setInterval(toggleSohoAlternating, 3000);
+
 async function loadISS(){
   const el = document.getElementById('issList');
   try{
@@ -785,10 +994,15 @@ function refreshAll(){
   reloadSky();
   updatePolarPanel();
   updateEphemeris();
+  loadSeeingTransparency();
   loadISS();
 }
 refreshAll();
 loadCalendarEvents();
+loadKpIndex();
+loadSohoImages();
+setInterval(loadKpIndex, 15*60*1000); // Kp global, indépendant de la position, rafraîchi toutes les 15 min
+setInterval(loadSohoImages, 30*60*1000);
 initLocationBanner();
 
 /* ============================================================
