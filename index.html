@@ -198,8 +198,17 @@ body.night button.pill.accent{color:#1a0000;}
     <span class="loc-banner-text">Utiliser votre position réelle au lieu de Vesoul (carte du ciel, GoTo, éphémérides, ISS) ?</span>
     <div class="loc-banner-btns">
       <button class="pill accent" onclick="bannerAllow()">Autoriser</button>
+      <button class="pill" onclick="toggleManualLoc()">Saisir manuellement</button>
       <button class="pill" onclick="bannerDecline()">Non, garder Vesoul</button>
     </div>
+  </div>
+  <div class="wrap" id="manualLocForm" style="display:none; padding:0 14px 12px;">
+    <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
+      <input id="manualLat" type="number" step="0.0001" placeholder="Latitude (ex: 47.6333)" style="flex:1; min-width:140px; background:var(--bg); border:1px solid var(--line); color:var(--text); border-radius:8px; padding:8px 10px; font-size:12px;">
+      <input id="manualLon" type="number" step="0.0001" placeholder="Longitude (ex: 6.1546)" style="flex:1; min-width:140px; background:var(--bg); border:1px solid var(--line); color:var(--text); border-radius:8px; padding:8px 10px; font-size:12px;">
+      <button class="pill accent" onclick="applyManualLoc()">Valider</button>
+    </div>
+    <div style="font-size:10.5px; color:var(--text-dim); margin-top:6px;">Astuce : ouvrez Google Maps, appui long sur votre position, les coordonnées s'affichent en haut — copiez-collez ici.</div>
   </div>
 </div>
 
@@ -397,6 +406,27 @@ applyNightState();
 /* ============================================================
    GÉOLOCALISATION
    ============================================================ */
+function toggleManualLoc(){
+  const form = document.getElementById('manualLocForm');
+  form.style.display = form.style.display === 'none' ? 'block' : 'none';
+}
+function applyManualLoc(){
+  const lat = parseFloat(document.getElementById('manualLat').value);
+  const lon = parseFloat(document.getElementById('manualLon').value);
+  if(isNaN(lat) || isNaN(lon) || lat < -90 || lat > 90 || lon < -180 || lon > 180){
+    alert("Coordonnées invalides. Latitude entre -90 et 90, longitude entre -180 et 180.");
+    return;
+  }
+  state.lat = lat; state.lon = lon; state.label = "Position saisie manuellement"; state.geolocated = true;
+  localStorage.setItem('astro_loc_consent', 'declined'); // on ne redemande plus le GPS auto
+  localStorage.setItem('astro_manual_loc', JSON.stringify({lat,lon}));
+  document.getElementById('locDot').classList.add('ok');
+  document.getElementById('locText').textContent = "Position manuelle enregistrée";
+  document.getElementById('locBanner').style.display = 'none';
+  document.getElementById('manualLocForm').style.display = 'none';
+  refreshAll();
+}
+
 function bannerAllow(){
   localStorage.setItem('astro_loc_consent', 'granted');
   document.getElementById('locBanner').style.display = 'none';
@@ -407,9 +437,20 @@ function bannerDecline(){
   document.getElementById('locBanner').style.display = 'none';
 }
 function initLocationBanner(){
+  const savedManual = localStorage.getItem('astro_manual_loc');
+  if(savedManual){
+    try{
+      const {lat,lon} = JSON.parse(savedManual);
+      state.lat = lat; state.lon = lon; state.label = "Position enregistrée"; state.geolocated = true;
+      document.getElementById('locDot').classList.add('ok');
+      document.getElementById('locText').textContent = "Position manuelle enregistrée";
+      refreshAll();
+      return;
+    }catch(e){}
+  }
   const consent = localStorage.getItem('astro_loc_consent');
   if(consent === 'granted'){
-    useMyLocation(); // ré-autorisé précédemment : on relocalise silencieusement (pas de nouveau prompt navigateur)
+    useMyLocation();
   } else if(consent !== 'declined'){
     document.getElementById('locBanner').style.display = 'block';
   }
@@ -420,6 +461,7 @@ function useMyLocation(){
   const locDot = document.getElementById('locDot');
   if(!navigator.geolocation){
     locText.textContent = "Géolocalisation non disponible — position Vesoul utilisée";
+    document.getElementById('manualLocForm').style.display = 'block';
     return;
   }
   locText.textContent = "Localisation en cours…";
@@ -432,7 +474,9 @@ function useMyLocation(){
     locText.textContent = `Position détectée (±${Math.round(pos.coords.accuracy)} m)`;
     refreshAll();
   }, err=>{
-    locText.textContent = "Position refusée — Vesoul utilisée par défaut";
+    locText.textContent = "⚠ Géolocalisation indisponible (bloquée par l'appli ou le système) — utilisez la saisie manuelle ci-dessous";
+    document.getElementById('locBanner').style.display = 'block';
+    document.getElementById('manualLocForm').style.display = 'block';
     if(localStorage.getItem('astro_loc_consent') === 'granted'){
       localStorage.setItem('astro_loc_consent', 'declined');
     }
@@ -740,7 +784,7 @@ if(isIOS && !isStandalone && !localStorage.getItem('astro_ios_tip_seen')){
   document.getElementById('iosInstallTip').style.display = 'block';
   localStorage.setItem('astro_ios_tip_seen', '1');
 }
-setInterval(updatePolarPanel, 30000);
+setInterval(updatePolarPanel, 1000);
 setInterval(loadISS, 10*60*1000);
 </script>
 </body>
