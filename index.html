@@ -134,6 +134,9 @@ button.pill{
 
 /* ---------- Polar align ---------- */
 .polar-grid{display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:14px;}
+.gps-refresh-row{display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:14px; padding-bottom:14px; border-bottom:1px solid var(--line);}
+.gps-status{font-size:11px; color:var(--text-dim); flex:1; min-width:140px;}
+#gpsRefreshBtn.spinning{opacity:.6; pointer-events:none;}
 .stat-box{background:var(--bg-panel-2); border-radius:10px; padding:10px 12px;}
 .stat-box .k{font-size:10px; color:var(--text-dim); text-transform:uppercase; letter-spacing:.5px;}
 .stat-box .v{font-family:'JetBrains Mono',monospace; font-size:16px; margin-top:3px; color:var(--accent);}
@@ -250,7 +253,7 @@ body.night button.pill.accent{color:#1a0000;}
         <div class="bortle-info">
           <div class="bortle-label" id="bortleLabel">Échelle de Bortle</div>
           <div class="bortle-desc" id="bortleDesc">Estimation de la pollution lumineuse au lieu où vous vous trouvez.</div>
-          <div class="loc-status"><span class="dot" id="locDot"></span><span id="locText">Position par défaut : Vesoul</span></div>
+          <div class="loc-status"><span class="dot" id="locDot"></span><span id="locText">Position par défaut : Vesoul</span><button class="pill" id="gpsRefreshBtnBortle" onclick="refreshGpsFix()" style="margin-left:auto; flex-shrink:0;">🔄 Actualiser</button></div>
         </div>
       </div>
       <div class="bortle-adjust">
@@ -304,6 +307,10 @@ body.night button.pill.accent{color:#1a0000;}
     <div class="sec-title"><span class="num">03</span><h2>Réglages raquette GoTo</h2></div>
     <div class="sec-sub">Données à saisir + position du viseur polaire</div>
     <div class="card">
+      <div class="gps-refresh-row">
+        <button class="pill accent" id="gpsRefreshBtn" onclick="refreshGpsFix()">🔄 Actualiser la position GPS</button>
+        <span class="gps-status" id="gpsStatus">Jamais actualisée depuis le GPS du téléphone</span>
+      </div>
       <div class="polar-grid">
         <div class="stat-box"><div class="k">Latitude</div><div class="v" id="pLat">–</div></div>
         <div class="stat-box"><div class="k">Longitude</div><div class="v" id="pLon">–</div></div>
@@ -406,6 +413,39 @@ applyNightState();
 /* ============================================================
    GÉOLOCALISATION
    ============================================================ */
+function refreshGpsFix(){
+  const btn = document.getElementById('gpsRefreshBtn');
+  const btnBortle = document.getElementById('gpsRefreshBtnBortle');
+  const status = document.getElementById('gpsStatus');
+  const setBusy = (busy)=>{
+    [btn, btnBortle].forEach(b=>{ if(!b) return; b.classList.toggle('spinning', busy); if(b===btn) b.textContent = busy ? "🔄 Recherche du signal GPS…" : "🔄 Actualiser la position GPS"; });
+  };
+  if(!navigator.geolocation){
+    if(status) status.textContent = "⚠ GPS non disponible sur cet appareil/navigateur";
+    return;
+  }
+  setBusy(true);
+  if(status) status.textContent = "Recherche en cours…";
+  navigator.geolocation.getCurrentPosition(pos=>{
+    state.lat = pos.coords.latitude;
+    state.lon = pos.coords.longitude;
+    state.label = "Votre position (GPS)";
+    state.geolocated = true;
+    setBusy(false);
+    const now = new Date();
+    if(status) status.textContent = `✓ Précision ±${Math.round(pos.coords.accuracy)} m · mesurée à ${fmtTime(now)}`;
+    document.getElementById('locDot').classList.add('ok');
+    document.getElementById('locText').textContent = `Position GPS (±${Math.round(pos.coords.accuracy)} m)`;
+    refreshAll();
+  }, err=>{
+    setBusy(false);
+    const reasons = {1:"Permission refusée", 2:"Position indisponible", 3:"Délai dépassé"};
+    const msg = `⚠ ${reasons[err.code] || 'Erreur GPS'} — utilisez la saisie manuelle en haut de page si ça persiste`;
+    if(status) status.textContent = msg;
+    document.getElementById('locText').textContent = msg;
+  }, {enableHighAccuracy:true, timeout:12000, maximumAge:0});
+}
+
 function toggleManualLoc(){
   const form = document.getElementById('manualLocForm');
   form.style.display = form.style.display === 'none' ? 'block' : 'none';
@@ -424,6 +464,8 @@ function applyManualLoc(){
   document.getElementById('locText').textContent = "Position manuelle enregistrée";
   document.getElementById('locBanner').style.display = 'none';
   document.getElementById('manualLocForm').style.display = 'none';
+  const gpsStatus = document.getElementById('gpsStatus');
+  if(gpsStatus) gpsStatus.textContent = "Position saisie manuellement (pas une mesure GPS)";
   refreshAll();
 }
 
